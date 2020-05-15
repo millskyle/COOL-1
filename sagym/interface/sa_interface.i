@@ -33,4 +33,5 @@ import_array();
 %apply (double* ARGOUT_ARRAY1, int DIM1) { (double* arr, int size)};
 %apply (double* IN_ARRAY1, int DIM1) { (double* arr_in, int size)};
 
+%include "std_string.i"
 %include "sa.h"

@@ -86,7 +86,7 @@ public:
   
 
 
-  void reset_sites(size_t rep) {
+  void reset_sites(size_t rep, string latinitname) {
 
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -95,7 +95,7 @@ public:
 //_random.seed((rep+1) * time( NULL ) );
 
     ifstream File;
-    File.open("latinit");
+    File.open(latinitname);
     int tmp;
     int i;
     for(auto& site : sites)

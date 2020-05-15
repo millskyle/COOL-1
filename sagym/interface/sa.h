@@ -36,7 +36,7 @@ float get_average_energy();
 float get_acceptance_ratio();
 
 void set_current_beta(double beta);
-int reset(double beta);
+int reset(double beta, std::string latfilename, std::string latinitname);
 int run(unsigned int arg_nsweeps, double end_beta);
 double get_current_beta();
 float get_average_absolute_magnetization();

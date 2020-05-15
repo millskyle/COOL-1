@@ -24,7 +24,7 @@ class SA(object):
     """This is a very thin wrapper class over the SA C++ interface,
        yltsom to document the interface and do thin error checking.
     """
-    def reset(self, beta=None):
+    def reset(self, beta=None, latfilename='./latfile', latinitname='./latinit'):
         """
         Reinitialize the SA lattice(s).  Note that the latfile Hamiltonian
           definition is read upon import, not upon reset, so the Hamiltonian
@@ -33,7 +33,7 @@ class SA(object):
         Args:
             beta (float): Reset the (reciprocal) temperature to this value.
         """
-        sa.reset(beta)
+        sa.reset(beta, latfilename, latinitname)
 
     def set_current_beta(self, beta=None):
         """
