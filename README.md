@@ -35,8 +35,8 @@ export COOL_HOME=/home/user/git/COOL/
 If you wish to run the examples (reinforcement learning code), you will need to install the Python dependencies.
 
 ```bash
-pip install stable-baselines
-conda install tensorflow-gpu=1.13
+pip install stable-baselines tqdm networkx
+conda install tensorflow-gpu=1
 ```
 
 
