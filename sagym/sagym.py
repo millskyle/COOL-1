@@ -29,6 +29,7 @@ import gym
 import pdb
 import os
 import warnings
+import uuid
 
 
 from sagym.helper import evaluate_success
@@ -65,9 +66,12 @@ class SAGym(gym.Env):
         self._RO.Adat = []
         self._make_movie = False
         self._RO.success_prob = []
-        self.r_deque = deque(maxlen=100)
         self.success_count = deque(maxlen=100)
         self.starttime = time.time()
+
+        self.uuid = uuid.uuid4().hex
+        self.latfilename = "/tmp/latfile_{self.uuid}"
+        self.latinitname = "/tmp/latinit_{self.uuid}"
 
     @property
     def success_reward(self):
@@ -153,7 +157,7 @@ class SAGym(gym.Env):
         self._RO.arat = []
         self._step_counter = 0
         self._last_hard_reset_beta=self._beta_upon_reset
-        self._sa.reset(beta=self._last_hard_reset_beta)
+        self._sa.reset(beta=self._last_hard_reset_beta, latfilename=self.latfilename, latinitname=self.latinitname)
         self._energies_before_action = -self._sa.get_all_energies() / self.SPIN_N
         return self._get_state()
 
@@ -255,7 +259,7 @@ class SAGymContinuousRandomJ(SAGym):
             from sagym.helper import FileHamiltonianGetter 
             assert directory is not None, "Directory cannot be None" 
             self.HG = FileHamiltonianGetter(directory=directory, disable_random=False, static=None) 
-        self.HG.get()
+        self.HG.get(latfilename=self.latfilename)
 
         from sagym.sa import SA
         self._sa = SA()
@@ -334,9 +338,9 @@ class SAGymContinuousRandomJ(SAGym):
         #Call HG.get, which copies a random latfile from a library of latfiles, and returns the ground state energy
         #Generate a random starting configuration
 
-        self.generate_latinit(lines=self.SPIN_N)
+        self.generate_latinit(lines=self.SPIN_N, latinitname=self.latinitname)
         self.sum_of_rewards = 0
-        self.HG.get()
+        self.HG.get(latfilename=self.latfilename)
         s = super().reset()
 
         self._actions_taken_since_reset = []
@@ -368,8 +372,8 @@ class SAGymContinuousRandomJ(SAGym):
             # Destroy the system by:
             #   (a) creating a new latinit, and,
             #   (b) resetting the spins.
-            self.generate_latinit(lines=self.SPIN_N)
-            self._sa.reset(beta=self._last_hard_reset_beta)
+            self.generate_latinit(lines=self.SPIN_N, latinitname=self.latinitname)
+            self._sa.reset(beta=self._last_hard_reset_beta, latfilename=self.latfilename, latinitname=self.latinitname)
             # Then evolve the "new" system by the old policy by
             # repeating all actions that were taking up to this time
             for i,db in enumerate(self._actions_taken_since_reset):
@@ -383,11 +387,11 @@ class SAGymContinuousRandomJ(SAGym):
         Es = self._sa.get_all_energies()/self.SPIN_N
 
         if self._step_counter >= self.max_ep_length:
-            reward = -np.min(Es) #min energy at final step of episode
+            reward = -np.min(Es)*50.0 #min energy at final step of episode
             done = True
         else:
             if penalize_action:
-                reward = -0.1
+                reward = -0.01
             else:
                 reward=0
             done = False
@@ -395,7 +399,6 @@ class SAGymContinuousRandomJ(SAGym):
         info = {}
 
         if done:
-            self.r_deque.append(reward)
             walltime = time.time() - self.starttime
         self.sum_of_rewards += reward
         
