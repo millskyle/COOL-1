@@ -24,39 +24,51 @@ import shutil
 import logging
 import time
 
+def mostrecentmodification(directory):
+    max_mtime = 0
+    for f in os.listdir(directory):
+        full_path = os.path.join(directory, f)
+        mtime = os.stat(full_path).st_mtime
+        print(f,mtime)
+        if mtime > max_mtime:
+            max_mtime = mtime
+            max_path = full_path
+    return max_path
 
-def generate_latinit_bernoulli(lines):
+
+
+def generate_latinit_bernoulli(lines, latinitname):
     """Uniformly distributed number of up/down spins"""
     num_up = np.random.randint(0,lines)
     spins = np.array([1]*num_up + [-1]*(lines-num_up)).astype(np.int)
     np.random.shuffle(spins)
 
 
-    with open("./latinit", "w") as F:
+    with open(latinitname, "w") as F:
         for i in range(lines):
             pass
             F.write(f"{spins[i]}\n")
 
-def generate_WSC_latinit(lines):
+def generate_WSC_latinit(lines, latinitname):
     spins = [-1]*8 + [1.0]*8
 
-    with open("./latinit", "w") as F:
+    with open(latinitname, "w") as F:
         for i in range(lines):
             F.write(f"{spins[i]}\n")
 
-def generate_latinit_random(lines):
+def generate_latinit_random(lines, latinitname):
     """Each spin randomly drawn with 50% up/down probability"""
     #num_up = np.random.randint(0,lines)
     #spins = [1.0]*num_up + [-1.0]*(lines-num_up)
     spins = 2*np.random.randint(0,2,lines)-1
     #np.random.shuffle(spins)
 
-    with open("./latinit", "w") as F:
+    with open(latinitname, "w") as F:
         for i in range(lines):
             F.write(f"{spins[i]}\n")
 
-def generate_latinit(lines):
-    generate_latinit_bernoulli(lines)
+def generate_latinit(lines, latinitname):
+    generate_latinit_bernoulli(lines, latinitname)
 
 
 
@@ -126,8 +138,8 @@ class RandomHamiltonianGetter(object):
     def __init__(self, L):
         self.L = L
     
-    def get(self):
-        make_latfile('./latfile', L=self.L)
+    def get(self, latfilename):
+        make_latfile(latfilename, L=self.L)
     
     @property
     def ground_state(self):
@@ -161,7 +173,7 @@ class FileHamiltonianGetter(object):
         self._list_dir = self._list_dir[0:N]
         logging.info(f"--> new list size: {len(self._list_dir)}")
 
-    def get(self):
+    def get(self, latfilename):
         dirr = self._list_dir[self._last_idx % len(self._list_dir)]
         self._last_idx += 1
         if not self._disable_random:
@@ -172,7 +184,7 @@ class FileHamiltonianGetter(object):
             dirr = self._list_dir[self._static % len(self._list_dir)]
 
         self._last_returned_directory = os.path.join(self._directory, dirr)
-        shutil.copyfile(self._last_returned_directory + '/latfile', "./latfile")
+        shutil.copyfile(self._last_returned_directory + '/latfile', latfilename)
         try:
             self._last_returned_gs_energy = float(open(self._directory + dirr + "/gs_energy", 'r').read())
         except:
