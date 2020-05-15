@@ -28,7 +28,6 @@ from stable_baselines import PPO2
 import os
 import sys
 from train import model_args, mostrecentmodification, env_generator
-from sagym.render.moviemaker import MovieMaker
 import argparse
 import logging
 logging.basicConfig(level=logging.DEBUG)
