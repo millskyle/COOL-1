@@ -125,8 +125,8 @@ if __name__=='__main__':
 
         env = model.get_env()
 
-        num_hamiltonians = 10
-        num_trials = 10
+        num_hamiltonians = 100
+        num_trials = 50
         env.env_method("init_HamiltonianSuccessRecorder", indices=[0], num_hamiltonians=num_hamiltonians, num_trials=num_trials)
         env.env_method("set_static_Hamiltonian_by_ID", indices=[0], ID=0)
 
