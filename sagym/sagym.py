@@ -70,8 +70,8 @@ class SAGym(gym.Env):
         self.starttime = time.time()
 
         self.uuid = uuid.uuid4().hex
-        self.latfilename = "/tmp/latfile_{self.uuid}"
-        self.latinitname = "/tmp/latinit_{self.uuid}"
+        self.latfilename = f"/tmp/latfile_{self.uuid}"
+        self.latinitname = f"/tmp/latinit_{self.uuid}"
 
     @property
     def success_reward(self):
@@ -276,6 +276,9 @@ class SAGymContinuousRandomJ(SAGym):
     def print_hamiltonian_success_recorder_success(self):
         self.HSR.print_success()
 
+    def get_hamiltonian_success_probability(self):
+        return self.HSR.get_success()
+
     def hsr_write(self):
         self.HSR.write(os.path.join(self.results_dir, 'HamiltonianSuccess.dat'))
 
@@ -310,7 +313,9 @@ class SAGymContinuousRandomJ(SAGym):
     def reset(self): 
 
         if not self._first_reset and not(self.HSR.placeholder):
-            self.HSR.record(result=-self._sa.get_all_energies() / self.SPIN_N, goal=self.success_reward, source_dir=self.HG._last_returned_directory)
+            self.HSR.record(result=-self._sa.get_all_energies() / self.SPIN_N,
+                            goal=self.success_reward,
+                            source_dir=self.HG._last_returned_directory)
             self.HSR.print_to_screen()
         else:
             self.initialization_checks()

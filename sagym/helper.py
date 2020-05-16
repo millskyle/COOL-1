@@ -129,7 +129,10 @@ class HamiltonianSuccessRecorder(object):
 
 
     def print_success(self):
-        print(np.nanmean(self.all_results)*100)
+        print(self.get_success())
+    
+    def get_success(self):
+        return np.nanmean(self.all_results)*100
 
 
 #from sagym.models import make_rndj_nn_sg as make_latfile
