@@ -21,6 +21,7 @@ import os
 import gym
 import sys
 import sagym
+import subprocess
 import numpy as np
 from policies import CnnPolicyOverReps, CnnLnLstmPolicyOverReps
 from stable_baselines.common.vec_env import DummyVecEnv, VecNormalize, VecCheckNan, VecEnv
@@ -76,6 +77,11 @@ args.tag = codenamize(hashstr)
 
 import wandb
 wandb.init(id=args.tag, resume='allow', config=wandbconfig, project="cool_tests", sync_tensorboard=True)
+run_name=wandb.run.name
+try:
+    subprocess.call(["scontrol","update",f"jobid={os.environ['SLURM_JOB_ID']}", f"name={wandb.run.name}"])
+except:
+    pass
 
 log_dir="./logs/"
 os.makedirs(log_dir, exist_ok=True)
