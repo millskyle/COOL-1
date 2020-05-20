@@ -308,6 +308,13 @@ class SAGymContinuousRandomJ(SAGym):
     def get_all_energies(self):
         return self._sa.get_all_energies()
 
+    def get_current_beta(self):
+        return self._sa.get_current_beta()
+    
+    def get_current_temperature(self):
+        return 1./self.get_current_beta()
+    
+
     ####
 
     def reset(self): 
@@ -365,11 +372,11 @@ class SAGymContinuousRandomJ(SAGym):
         dbeta = np.asscalar(action)
 
         penalize_action = False
-        if self._sa.get_current_beta() + dbeta <= 0.0001: 
-            penalize_action = True
-        if self._sa.get_current_beta() + dbeta > 20.0:
-            penalize_action = True
-            dbeta = 0.0 
+#        if self._sa.get_current_beta() + dbeta <= 0.0001: 
+#            penalize_action = True
+#        if self._sa.get_current_beta() + dbeta > 20.0:
+#            penalize_action = True
+#            dbeta = 0.0 
 
         super().step(action)
 
@@ -392,7 +399,7 @@ class SAGymContinuousRandomJ(SAGym):
         Es = self._sa.get_all_energies()/self.SPIN_N
 
         if self._step_counter >= self.max_ep_length:
-            reward = -np.min(Es)*50.0 #min energy at final step of episode
+            reward = -np.min(Es) #min energy at final step of episode
             done = True
         else:
             if penalize_action:
@@ -403,9 +410,7 @@ class SAGymContinuousRandomJ(SAGym):
 
         info = {}
 
-        if done:
-            walltime = time.time() - self.starttime
         self.sum_of_rewards += reward
-        
+
         return self.state_concat(state), reward, done, info
 

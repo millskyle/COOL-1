@@ -95,12 +95,12 @@ class HamiltonianSuccessRecorder(object):
 
 
     def record(self, result, goal, source_dir='NA'):
-        print("")
-        print("----- HamiltonianSuccessRecorder -----")
-        print(f"  Goal: {goal}")
-        print(f"  H(all):", result)
+        #print("")
+        #print("----- HamiltonianSuccessRecorder -----")
+        #print(f"  Goal: {goal}")
+        #print(f"  H(all):", result)
         success = int(evaluate_success(result, goal))
-        print(f"-{'success' if success else 'fail---'}------------------------------")
+        #print(f"-{'success' if success else 'fail---'}------------------------------")
         self.all_results[self.counter] = success
         self.counter += 1
         if source_dir not in self.result_dict:
@@ -109,7 +109,7 @@ class HamiltonianSuccessRecorder(object):
             self.result_dict[source_dir].append(success)
         
 
-    def print_to_screen(self):
+    def print_to_screen(self):      
         print("")
         for i,h in enumerate(self.result_dict):
             mean = np.mean(self.result_dict[h])*100.
