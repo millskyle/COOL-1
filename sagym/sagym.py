@@ -372,11 +372,11 @@ class SAGymContinuousRandomJ(SAGym):
         dbeta = np.asscalar(action)
 
         penalize_action = False
-#        if self._sa.get_current_beta() + dbeta <= 0.0001: 
-#            penalize_action = True
-#        if self._sa.get_current_beta() + dbeta > 20.0:
-#            penalize_action = True
-#            dbeta = 0.0 
+        if self._sa.get_current_beta() + dbeta <= 0.0001:
+            penalize_action = True
+        if self._sa.get_current_beta() + dbeta > 20.0:
+            penalize_action = True
+            dbeta = 0.0
 
         super().step(action)
 

@@ -27,7 +27,7 @@ from policies import CnnLnLstmPolicyOverReps
 from stable_baselines.common.policies import CnnLnLstmPolicy
 from stable_baselines.common.vec_env import DummyVecEnv, VecNormalize, VecCheckNan, VecEnv
 from stable_baselines import PPO2
-from sagym.helper import TTSLogger, mostrecentmodification
+from sagym.helper import TTSLogger, mostrecentmodification, bestperformingcheckpoint
 import logging
 import argparse
 import h5py
@@ -38,12 +38,17 @@ import threading
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import shutil
+from uuid import uuid4
 
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-d","--hamiltonian_directory", help="Hamiltonian directory", default="")
     parser.add_argument("--destructive", default=False, action='store_true', help='Whether or not to use destructive observation.')
+    parser.add_argument("--test", default=False, action='store_true', help="Do testing instead of training")
+    parser.add_argument("--codename", default=None, type=str, help="Override the codename.")
+    parser.add_argument("--checkpoint", default='auto', type=str, help="Explicitly provide the checkpoint name to load")
 
     parser.add_argument("--episode_length", default=40, type=int, help="N_steps, that is, number of episode steps")
     parser.add_argument("--total_sweeps", default=4000, type=int, help="Total number of sweeps per episode")
@@ -81,20 +86,22 @@ wandbconfig["L"] = os.environ["LATTICE_L"]
 hashstr = ""
 for key, value in wandbconfig.items():
     hashstr = hashstr + str(value)
-args.tag = codenamize(hashstr)
+if args.codename is None:
+    args.tag = codenamize(hashstr)
+else:
+    args.tag = args.codename
 
 episode_length=args.episode_length
 
-import wandb
-wandb.init(id=args.tag, resume='allow', config=wandbconfig, project="cool_tests", sync_tensorboard=True)
-run_name=wandb.run.name
-try:
-    subprocess.call(["scontrol","update",f"jobid={os.environ['SLURM_JOB_ID']}", f"name={wandb.run.name}"])
-except:
-    pass
+if not(args.test):
+    import wandb
+    wandb.init(id=args.tag, resume='allow', config=wandbconfig, project="cool_tests", sync_tensorboard=True)
+    run_name=wandb.run.name
+    try:
+        subprocess.call(["scontrol","update",f"jobid={os.environ['SLURM_JOB_ID']}", f"name={wandb.run.name}"])
+    except:
+        pass
 
-log_dir="./logs/"
-os.makedirs(log_dir, exist_ok=True)
 schedule_episode_length = False
 
 def env_generator(ep_len=40, total_sweeps=4000, beta_init_function=None):
@@ -105,21 +112,21 @@ def env_generator(ep_len=40, total_sweeps=4000, beta_init_function=None):
     env.unwrapped.action_scaling = args.action_scaling
 
     if beta_init_function is None:
-        env.unwrapped.beta_init_function = lambda: 1.6
+        env.unwrapped.beta_init_function = lambda: 1.0/(np.random.rand()*2.7 + 0.3)
     else:
         env.unwrapped.beta_init_function = beta_init_function
-    #env = Monitor(env, log_dir, allow_early_resets=True)
 
     return env
 
-def validation(checkpoint_name, num_hamiltonians=20, num_trials=10):
+def validation(checkpoint_name, num_hamiltonians=20, num_trials=10, mode='validation'):
     tf.config.set_soft_device_placement(True)
     with tf.device("/gpu:1"):
         env = DummyVecEnv([lambda: env_generator(ep_len=args.episode_length, total_sweeps=args.total_sweeps)])
 
         env.env_method('set_experiment_tag', indices=[0], tag=args.tag)
         env.env_method('set_max_ep_length', indices=[0], max_ep_length=args.episode_length)
-        #env.env_method("toggle_datadump_on", indices=[0])
+        if mode=='test':
+            env.env_method("toggle_datadump_on", indices=[0])
         env.env_method('init_HamiltonianGetter', indices=[0], phase='TEST',
                        directory=args.hamiltonian_directory )
 
@@ -132,7 +139,6 @@ def validation(checkpoint_name, num_hamiltonians=20, num_trials=10):
 
         if args.destructive:
             env.env_method('set_destructive_observation_on', indices=[0])
-
 
         obs = env.reset()
 
@@ -147,34 +153,35 @@ def validation(checkpoint_name, num_hamiltonians=20, num_trials=10):
                 schedule = []
                 while True:
                     step+=1
-
+                    schedule.append(env.env_method('get_current_beta', indices=[0])[0])
                     action, state = model.predict(obs, state=state, mask=done, deterministic=True)
                     obs, reward, d, _ = env.step(action)
-                    schedule.append(env.env_method('get_current_beta', indices=[0])[0])
 
     #                if test_ep==10000:
     #                    env.env_method("toggle_datadump_off", indices=[0])
                     if d:
                         break
-                if trial==0:
+                if trial==0 and mode=='validation': #only want to log if in validation mode (i.e. validation during testing)
                     plt.plot(schedule)
                     wandb.log({"Validation schedules":wandb.Image(plt)})
                     plt.close()
-        p = env.env_method('get_hamiltonian_success_probability', indices=[0])[0]
-        wandb.log({"Probability of success":p})
-        env.env_method('close_env')
+            if mode=='test':
+                env.env_method("hsr_write")
+        if mode=='validation': #only want to log if in validation mode (i.e. validation during testing)
+            p = env.env_method('get_hamiltonian_success_probability', indices=[0])[0]
+            wandb.log({"Probability of success":p})
+            archive=checkpoint_name.replace("saved_model",f"archived_p{p:06.3f}_{uuid4()}")
+            print(f"Archiving checkpoint. Copying {checkpoint_name} to {archive}")
+            shutil.copy(checkpoint_name + ".zip", archive + ".zip")
+
+            
+
+
+
 
 if __name__=='__main__':
 
-    env = DummyVecEnv([lambda: env_generator(ep_len=args.episode_length, total_sweeps=args.total_sweeps)])
-    #env = VecNormalize(env, norm_obs=False, norm_reward=True, training=True)
-
-    env.env_method('set_experiment_tag', indices=[0], tag=args.tag)
-    env.env_method('init_HamiltonianGetter', indices=[0], phase='TRAIN')
-    env.env_method('set_max_ep_length', indices=[0], max_ep_length=args.episode_length)
     n_steps=0
-
-
     def callback(_locals, _globals):
         global n_steps, episode_length
         if n_steps % 10000*episode_length == 0 and schedule_episode_length:
@@ -185,37 +192,55 @@ if __name__=='__main__':
             os.makedirs(os.path.join('./saves/',args.tag), exist_ok=True)
             chkpt = os.path.join('./saves/',args.tag,f"saved_model_{n_steps}")
             _locals['self'].save(chkpt)
-            print(f"Beginning validation pass using checkpoint {chkpt}")
+            if n_steps > 0:
+                print(f"Beginning validation pass using checkpoint {chkpt}")
+                thread = threading.Thread(target=validation, args=(chkpt,))
+                thread.daemon = True
+                thread.start()
 
-            thread = threading.Thread(target=validation, args=(chkpt,))
-            thread.daemon = True
-            thread.start()
-
-#            validation(chkpt)
         n_steps += 1
         return True
 
+    if args.checkpoint in ["RECENT", 'recent', 'RESUME', 'resume', 'AUTO', 'auto']:
+        try:
+            checkpoint = mostrecentmodification(os.path.join("./saves/", args.tag))
+        except:
+            checkpoint = 'fresh'
+    elif args.checkpoint in ["BEST","best","Best"]:
+        checkpoint = bestperformingcheckpoint(os.path.join("./saves/", args.tag))
+    else:
+        checkpoint = os.path.join("./saves/", args.tag, args.checkpoint.split('/')[-1])
 
-    print("Attempting to restore model")
-    try:
-        print("Loading model")
-        model = PPO2.load(mostrecentmodification(os.path.join("./saves/",args.tag)), env=env, **model_args)
-    except Exception as EEE:
-        print(EEE)
-        print("ERROR restoring model. Starting from scratch")
-        print("Initializing model")
-        model = PPO2(env=env,
-                     policy=CnnLnLstmPolicyOverReps,
-                     #policy=CnnLnLstmPolicy,
-                     verbose=2,
-                     _init_setup_model=True,
-                     **model_args
-                   )
+    if not args.test:
+        env = DummyVecEnv([lambda: env_generator(ep_len=args.episode_length,
+                                                 total_sweeps=args.total_sweeps)])
+        #env = VecNormalize(env, norm_obs=False, norm_reward=True, training=True)
 
+        env.env_method('set_experiment_tag', indices=[0], tag=args.tag)
+        env.env_method('init_HamiltonianGetter', indices=[0], phase='TRAIN')
+        env.env_method('set_max_ep_length', indices=[0], max_ep_length=args.episode_length)
 
-    print("Beginning learning...")
+        print("Attempting to restore model")
+        try:
+            print("Loading model")
+            model = PPO2.load(checkpoint, env=env, **model_args)
+        except Exception as EEE:
+            print(EEE)
+            print("ERROR restoring model. Starting from scratch")
+            print("Initializing model")
+            model = PPO2(env=env,
+                         policy=CnnLnLstmPolicyOverReps,
+                         #policy=CnnLnLstmPolicy,
+                         verbose=2,
+                         _init_setup_model=True,
+                         **model_args
+                       )
 
-    model.learn(total_timesteps=int(5000000), callback=callback, reset_num_timesteps=False, tb_log_name=args.tag)
+        print("Beginning learning...")
+
+        model.learn(total_timesteps=int(5000000), callback=callback, reset_num_timesteps=False, tb_log_name=args.tag)
+    else:
+        validation(checkpoint, num_hamiltonians=100, num_trials=10, mode='test')
 
 
 

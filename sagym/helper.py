@@ -23,16 +23,28 @@ import os
 import shutil
 import logging
 import time
+import glob
 
-def mostrecentmodification(directory):
+def bestperformingcheckpoint(directory, silent=False):
+    allarchived = glob.glob(directory + '/archived_p*.zip')
+    allarchived = sorted(allarchived)
+    if not silent:
+        print(f"Best archived checkpoint found: {allarchived[0]}")
+    return allarchived[-1]
+
+
+
+
+def mostrecentmodification(directory, silent=False):
     max_mtime = 0
     for f in os.listdir(directory):
         full_path = os.path.join(directory, f)
         mtime = os.stat(full_path).st_mtime
-        print(f,mtime)
         if mtime > max_mtime:
             max_mtime = mtime
             max_path = full_path
+    if not silent:
+        print(f"Newest checkpoint found: {max_path}")
     return max_path
 
 
@@ -126,6 +138,14 @@ class HamiltonianSuccessRecorder(object):
                 for success in self.result_dict[h]:
                     F.write(f"{int(success):3d},")
                 #F.write("\n")
+        try:
+            with open(outputfile.replace(".dat", "perHam.dat"), 'w') as F:
+                sortd = {k: v for k, v in sorted(self.result_dict.items(), key=lambda item: sum(item[1]))}
+                for i, h in enumerate(sortd):
+                    F.write(f"{h}, {sum(sortd[h])}\n")
+        except Exception as E:
+            print(E)
+            pass
 
 
     def print_success(self):
