@@ -51,7 +51,7 @@ if __name__=='__main__':
     parser.add_argument("--dbeta", default=0.05, type=float, help='The (constant) dBeta to use for classic SA')
     args = parser.parse_args()
 
-args.tag = f"baseline_L{os.environ['LATTICE_L']}_dbeta_{args.dbeta:.6f}"
+args.tag = f"linear_baseline_L{os.environ['LATTICE_L']}_dbeta_{args.dbeta:.6f}"
 episode_length=args.episode_length
 
 def env_generator(ep_len=40, total_sweeps=4000, beta_init_function=None):
@@ -99,7 +99,7 @@ def baseline(num_hamiltonians=20, num_trials=10):
             env.env_method("hsr_write")
 
 if __name__=='__main__':
-    baseline(num_hamiltonians=100, num_trials=10)
+    baseline(num_hamiltonians=100, num_trials=100)
 
 
 

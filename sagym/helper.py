@@ -104,6 +104,7 @@ class HamiltonianSuccessRecorder(object):
         self.counter = 0
         self.all_results = np.zeros(self.num_trials*self.num_hamiltonians) + np.nan
         self.result_dict = dict()
+        self.goal_dict = dict()
 
 
     def record(self, result, goal, source_dir='NA'):
@@ -117,16 +118,17 @@ class HamiltonianSuccessRecorder(object):
         self.counter += 1
         if source_dir not in self.result_dict:
             self.result_dict[source_dir] = [success,]
+            self.goal_dict[source_dir] = goal
         else:
             self.result_dict[source_dir].append(success)
-        
 
-    def print_to_screen(self):      
+
+    def print_to_screen(self):
         print("")
         for i,h in enumerate(self.result_dict):
             mean = np.mean(self.result_dict[h])*100.
 #            print(f"Instance {i:5d}:  {mean:5.2f}  {h.split('/')[-1]}")
-            print(f"Instance {i:5d}:  {self.result_dict[h]}")
+            print(f"Instance {i:5d} ({self.goal_dict[h]:.4f}):  {self.result_dict[h]}")
         print(f"Overall: {np.nanmean(self.all_results)*100:5.3f}%")
 
 

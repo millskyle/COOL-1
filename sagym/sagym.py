@@ -333,6 +333,7 @@ class SAGymContinuousRandomJ(SAGym):
             with h5py.File(os.path.join(self.results_dir,
                                         "dataframes/",
                                         f"episode_{str(self._episode_counter).zfill(6)}.h5"), 'w') as F:
+                F.create_dataset("hamiltonian", data=np.string_([self.HG._last_returned_directory]))
                 F.create_dataset("states", data=np.array(self._RO.states))
                 F.create_dataset("Tdat", data=np.array(self._RO.Tdat))
                 F.create_dataset("Adat", data=np.array(self._RO.Adat))
