@@ -261,6 +261,9 @@ class SAGymContinuousRandomJ(SAGym):
             self.HG = FileHamiltonianGetter(directory=directory, disable_random=False, static=None) 
         self.HG.get(latfilename=self.latfilename)
 
+        from shutil import copyfile
+        copyfile(self.latfilename, './latfile')
+
         from sagym.sa import SA
         self._sa = SA()
 
