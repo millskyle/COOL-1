@@ -1,5 +1,5 @@
 # Controlled Online Optimization Learning (COOL): Finding the ground state of spin Hamiltonians with reinforcement learning
-
+<a href="https://zenodo.org/badge/latestdoi/250016240"><img src="https://zenodo.org/badge/250016240.svg" alt="DOI"></a>
 ![COOL](http://kylemills.ca/image/COOL_square_1k.jpg)
 
 ## Building
@@ -61,4 +61,4 @@ conda install tensorflow-gpu=1
 ## Note:
 `environment.yml` is a list of the developer's Python environment used during development.  It contains more software than is required, but can be manually consulted for package version numbers, should the need arise.  Most users will not need this file.
 
-<a href="https://zenodo.org/badge/latestdoi/250016240"><img src="https://zenodo.org/badge/250016240.svg" alt="DOI"></a>
+
