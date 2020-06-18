@@ -1,4 +1,4 @@
-# An example of a 16x16 Spin Glass model:
+`train_val.py` is the main script
 
 ## Training:
 
