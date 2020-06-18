@@ -40,6 +40,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import shutil
 from uuid import uuid4
+import time
 
 
 if __name__=='__main__':
@@ -96,7 +97,7 @@ episode_length=args.episode_length
 
 if not(args.test):
     import wandb
-    wandb.init(id=args.tag, resume='allow', config=wandbconfig, project="cool_tests", sync_tensorboard=True)
+    wandb.init(id=args.tag, resume='allow', config=wandbconfig, project="cool_final", sync_tensorboard=True)
     run_name=wandb.run.name
     try:
         subprocess.call(["scontrol","update",f"jobid={os.environ['SLURM_JOB_ID']}", f"name={wandb.run.name}"])
@@ -144,6 +145,10 @@ def validation(checkpoint_name, num_hamiltonians=20, num_trials=10, mode='valida
         obs = env.reset()
 
         test_ep=-1
+        inftime = 0
+        envtime = 0
+        count=0
+
         for ham in range(num_hamiltonians):
             env.env_method("set_static_Hamiltonian_by_ID", indices=[0], ID=ham)
             for trial in range(num_trials):
@@ -155,8 +160,19 @@ def validation(checkpoint_name, num_hamiltonians=20, num_trials=10, mode='valida
                 while True:
                     step+=1
                     schedule.append(env.env_method('get_current_beta', indices=[0])[0])
+                    tick = time.time()
                     action, state = model.predict(obs, state=state, mask=done, deterministic=True)
+                    tock = time.time()
+                    if step > 3 and step < 35:
+                        inftime += tock-tick
+
+
+                    tick = time.time()
                     obs, reward, d, _ = env.step(action)
+                    tock = time.time()
+                    if step > 3 and step < 35:
+                        envtime += tock-tick
+                        count += 1
 
     #                if test_ep==10000:
     #                    env.env_method("toggle_datadump_off", indices=[0])
@@ -168,6 +184,11 @@ def validation(checkpoint_name, num_hamiltonians=20, num_trials=10, mode='valida
                     plt.close()
             if mode=='test':
                 env.env_method("hsr_write")
+                print(f"Total inference time: {inftime}s")
+                print(f"Total environment time: {envtime}s")
+                print(f"Total count: {count}")
+                print(f"Time per inference call: {inftime/count}")
+                print(f"Time time in environment: {envtime/count}")
         if mode=='validation': #only want to log if in validation mode (i.e. validation during testing)
             p = env.env_method('get_hamiltonian_success_probability', indices=[0])[0]
             wandb.log({"Probability of success":p})
@@ -189,7 +210,7 @@ if __name__=='__main__':
             episode_length = min(episode_length+1, 40)
             env.env_method('set_max_ep_length', indices=[0], max_ep_length=episode_length)
             wandb.log({"episode_length":episode_length})
-        if (n_steps) % 50000 == 0:
+        if (n_steps) % 250000 == 0:
             os.makedirs(os.path.join('./saves/',args.tag), exist_ok=True)
             chkpt = os.path.join('./saves/',args.tag,f"saved_model_{n_steps}")
             _locals['self'].save(chkpt)
@@ -241,7 +262,7 @@ if __name__=='__main__':
 
         model.learn(total_timesteps=int(50000000), callback=callback, reset_num_timesteps=False, tb_log_name=args.tag)
     else:
-        validation(checkpoint, num_hamiltonians=100, num_trials=10, mode='test')
+        validation(checkpoint, num_hamiltonians=100, num_trials=100, mode='test')
 
 
 
