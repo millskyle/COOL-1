@@ -2,10 +2,10 @@
 #SBATCH -p cpu
 #SBATCH -t 1-00:00:00
 #SBATCH -J baseline
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=8
 #SBATCH --mem=8G
 
-export OMP_NUM_THREADS=4
+export OMP_NUM_THREADS=32
 
 source $HOME/.bashrc
 conda activate COOL

@@ -3,10 +3,10 @@
 #SBATCH -p gpu_any
 #SBATCH -t 10-00:00:00
 #SBATCH -J placeholder
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=8
 #SBATCH --mem=16G
 
-export OMP_NUM_THREADS=16
+export OMP_NUM_THREADS=8
 
 
 source $HOME/.bashrc
