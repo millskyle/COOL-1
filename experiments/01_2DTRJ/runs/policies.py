@@ -99,6 +99,12 @@ def rep_cnn(unscaled_images, SPIN_N, scope, **kwargs):
 
 
 
+class CnnPolicyOverReps(FeedForwardPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, cnn_extractor=rep_cnn, **kwargs):
+        super(CnnPolicyOverReps, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False)
+
+
+
 class CnnLnLstmPolicyOverReps(MlpLnLstmPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, cnn_extractor=rep_cnn, **kwargs):
         super(CnnLnLstmPolicyOverReps, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, cnn_extractor=rep_cnn)
