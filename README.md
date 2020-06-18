@@ -21,7 +21,7 @@ make install
 
 
 ### Mac OS X 
-This package should work on a Mac, but dependencies are more difficult to satisfy. You will probably need to edit `setup.py` to manually point to your boost include paths, tclap, etc. On Linux it just works (with apt).
+This package works on a Mac, but has not been tested on a clean installation. You will probably need to edit `setup.py` to manually point to your boost include paths, tclap, etc.
 
 
 
