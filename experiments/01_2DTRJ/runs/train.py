@@ -23,46 +23,59 @@ import sys
 import sagym
 import numpy as np
 from policies import CnnPolicyOverReps, CnnLnLstmPolicyOverReps
-from stable_baselines.common.vec_env import DummyVecEnv, VecNormalize, VecCheckNan
+from stable_baselines.common.vec_env import DummyVecEnv, VecNormalize, VecCheckNan, VecEnv
 from stable_baselines import PPO2
-from stable_baselines.results_plotter import load_results, ts2xy
-from stable_baselines.bench import Monitor
-from sagym.helper import TTSLogger
+from sagym.helper import TTSLogger, mostrecentmodification
 import logging
 import argparse
 import h5py
+from hashlib import sha512
+from codenamize import codenamize
+import tensorflow as tf
+tf.logging.set_verbosity(tf.logging.DEBUG)
+
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-t", "--tag", help="Experiment tag (name) used for organizing output", default="train")
     parser.add_argument("-d","--hamiltonian_directory", help="Hamiltonian directory", default="")
     parser.add_argument("--destructive", default=False, action='store_true', help='Whether or not to use destructive observation.')
+    
+    parser.add_argument("--episode_length", default=40, type=int, help="N_steps, that is, number of episode steps")
+    parser.add_argument("--learning_rate", default=0.00025, type=float, help="Learning rate for weight updates")
+
+    parser.add_argument("--salt", default="a", type=str, help="Salt the hash for the codename")
+
     args = parser.parse_args()
 
-episode_length = 40
+
+
+episode_length = args.episode_length
 
 model_args = dict(
-        gamma=0.99,
-        n_steps=episode_length*8,
-        ent_coef=0.001,
-        learning_rate=1e-6,
-        vf_coef=0.9,
-        nminibatches=1,
-        noptepochs=8,
-        cliprange=0.05,
-        tensorboard_log='./tensorboard/',
+        gamma = 0.99,
+        n_steps = 128,
+        ent_coef = 0.01,       
+        learning_rate = args.learning_rate,
+        vf_coef = 0.5,
+        max_grad_norm = 0.5, 
+        lam = 0.95, 
+        nminibatches = 1,
+        noptepochs = 4,
+        cliprange = 0.2,
+        cliprange_vf = None,
+        tensorboard_log = './tensorboard/',
     )
+wandbconfig = model_args.copy()
+wandbconfig["salt"] = args.salt
 
-def mostrecentmodification(directory):
-    max_mtime = 0
-    for f in os.listdir(directory):
-        full_path = os.path.join(directory, f)
-        mtime = os.stat(full_path).st_mtime
-        print(f,mtime)
-        if mtime > max_mtime:
-            max_mtime = mtime
-            max_path = full_path
-    return max_path
+
+hashstr = ""
+for key, value in wandbconfig.items():
+    hashstr = hashstr + str(value)
+args.tag = codenamize(hashstr)
+
+import wandb
+wandb.init(id=args.tag, resume='allow', config=wandbconfig, project="cool_tests", sync_tensorboard=True)
 
 log_dir="./logs/"
 os.makedirs(log_dir, exist_ok=True)
@@ -72,13 +85,13 @@ def env_generator(ep_len=40, total_sweeps=4000, beta_init_function=None):
     env = gym.make('SAContinuousRandomJ-v0')
     env.unwrapped.set_max_ep_length(ep_len)
     env.unwrapped.set_num_sweeps(total_sweeps // ep_len)
-    env.unwrapped.action_scaling = 5.0
+    env.unwrapped.action_scaling = 1.0
 
     if beta_init_function is None:
         env.unwrapped.beta_init_function = lambda: 0.3333
     else:
         env.unwrapped.beta_init_function = beta_init_function
-    env = Monitor(env, log_dir, allow_early_resets=True)
+    #env = Monitor(env, log_dir, allow_early_resets=True)
 
     return env
 
@@ -93,8 +106,8 @@ if PHASE=='VALUE_ANALYSIS':
 
 if __name__=='__main__':
 
-    env = DummyVecEnv([lambda: env_generator(ep_len=episode_length, total_sweeps=episode_length*1, beta_init_function=lambda: 2*np.random.rand() + 0.333 )])
-    env = VecNormalize(env, norm_obs=False, norm_reward=False, training=True)
+    env = DummyVecEnv([lambda: env_generator(ep_len=episode_length, total_sweeps=episode_length*100, beta_init_function=lambda: 2*np.random.rand() + 0.333 )])
+    #env = VecNormalize(env, norm_obs=False, norm_reward=True, training=True)
 
     env.env_method('set_experiment_tag', indices=[0], tag=args.tag)
     if PHASE=='VALUE_ANALYSIS' or PHASE=='ISING':
@@ -140,24 +153,32 @@ if __name__=='__main__':
 
 
         global n_steps, best_mean_reward
-        if (n_steps) % 100 == 0:
-            x, y = ts2xy(load_results(log_dir), 'timesteps')
-            if len(x) > 0:
-                os.makedirs(os.path.join('./saves/',args.tag), exist_ok=True)
-                _locals['self'].save(os.path.join('./saves/',args.tag,f"saved_model_{n_steps}"))
+        if (n_steps) % 5000 == 0:
+            os.makedirs(os.path.join('./saves/',args.tag), exist_ok=True)
+            _locals['self'].save(os.path.join('./saves/',args.tag,f"saved_model_{n_steps}"))
         n_steps += 1
         return True
 
 
 
+    print("Attempting to restore model")
     try:
+        print("Loading model")
         model = PPO2.load(mostrecentmodification(os.path.join("./saves/",args.tag)), env=env, **model_args)
-    except:
+    except Exception as EEE:
+        print(EEE)
         print("ERROR restoring model. Starting from scratch")
-        model = PPO2(CnnLnLstmPolicyOverReps, env, verbose=True, **model_args)
+        print("Initializing model")
+        model = PPO2(policy=CnnLnLstmPolicyOverReps,
+                     env=env,
+                     verbose=2, 
+                     _init_setup_model=False,
+                     **model_args
+                   )
+        model.setup_model()
+
+
+    print("Beginning learning...")
 
     model.learn(total_timesteps=int(5000000), callback=callback, reset_num_timesteps=False, tb_log_name=args.tag)
-
-
-
 

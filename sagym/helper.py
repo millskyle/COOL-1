@@ -23,40 +23,64 @@ import os
 import shutil
 import logging
 import time
+import glob
+
+def bestperformingcheckpoint(directory, silent=False):
+    allarchived = glob.glob(directory + '/archived_p*.zip')
+    allarchived = sorted(allarchived)
+    if not silent:
+        print(f"Best archived checkpoint found: {allarchived[0]}")
+    return allarchived[-1]
 
 
-def generate_latinit_bernoulli(lines):
+
+
+def mostrecentmodification(directory, silent=False):
+    max_mtime = 0
+    for f in os.listdir(directory):
+        full_path = os.path.join(directory, f)
+        mtime = os.stat(full_path).st_mtime
+        if mtime > max_mtime:
+            max_mtime = mtime
+            max_path = full_path
+    if not silent:
+        print(f"Newest checkpoint found: {max_path}")
+    return max_path
+
+
+
+def generate_latinit_bernoulli(lines, latinitname):
     """Uniformly distributed number of up/down spins"""
     num_up = np.random.randint(0,lines)
     spins = np.array([1]*num_up + [-1]*(lines-num_up)).astype(np.int)
     np.random.shuffle(spins)
 
 
-    with open("./latinit", "w") as F:
+    with open(latinitname, "w") as F:
         for i in range(lines):
             pass
             F.write(f"{spins[i]}\n")
 
-def generate_WSC_latinit(lines):
+def generate_WSC_latinit(lines, latinitname):
     spins = [-1]*8 + [1.0]*8
 
-    with open("./latinit", "w") as F:
+    with open(latinitname, "w") as F:
         for i in range(lines):
             F.write(f"{spins[i]}\n")
 
-def generate_latinit_random(lines):
+def generate_latinit_random(lines, latinitname):
     """Each spin randomly drawn with 50% up/down probability"""
     #num_up = np.random.randint(0,lines)
     #spins = [1.0]*num_up + [-1.0]*(lines-num_up)
     spins = 2*np.random.randint(0,2,lines)-1
     #np.random.shuffle(spins)
 
-    with open("./latinit", "w") as F:
+    with open(latinitname, "w") as F:
         for i in range(lines):
             F.write(f"{spins[i]}\n")
 
-def generate_latinit(lines):
-    generate_latinit_bernoulli(lines)
+def generate_latinit(lines, latinitname):
+    generate_latinit_bernoulli(lines, latinitname)
 
 
 
@@ -80,29 +104,31 @@ class HamiltonianSuccessRecorder(object):
         self.counter = 0
         self.all_results = np.zeros(self.num_trials*self.num_hamiltonians) + np.nan
         self.result_dict = dict()
+        self.goal_dict = dict()
 
 
     def record(self, result, goal, source_dir='NA'):
-        print("")
-        print("----- HamiltonianSuccessRecorder -----")
-        print(f"  Goal: {goal}")
-        print(f"  H(all):", result)
+        #print("")
+        #print("----- HamiltonianSuccessRecorder -----")
+        #print(f"  Goal: {goal}")
+        #print(f"  H(all):", result)
         success = int(evaluate_success(result, goal))
-        print(f"-{'success' if success else 'fail---'}------------------------------")
+        #print(f"-{'success' if success else 'fail---'}------------------------------")
         self.all_results[self.counter] = success
         self.counter += 1
         if source_dir not in self.result_dict:
             self.result_dict[source_dir] = [success,]
+            self.goal_dict[source_dir] = goal
         else:
             self.result_dict[source_dir].append(success)
-        
+
 
     def print_to_screen(self):
         print("")
         for i,h in enumerate(self.result_dict):
             mean = np.mean(self.result_dict[h])*100.
 #            print(f"Instance {i:5d}:  {mean:5.2f}  {h.split('/')[-1]}")
-            print(f"Instance {i:5d}:  {self.result_dict[h]}")
+            print(f"Instance {i:5d} ({self.goal_dict[h]:.4f}):  {self.result_dict[h]}")
         print(f"Overall: {np.nanmean(self.all_results)*100:5.3f}%")
 
 
@@ -114,10 +140,21 @@ class HamiltonianSuccessRecorder(object):
                 for success in self.result_dict[h]:
                     F.write(f"{int(success):3d},")
                 #F.write("\n")
+        try:
+            with open(outputfile.replace(".dat", "perHam.dat"), 'w') as F:
+                sortd = {k: v for k, v in sorted(self.result_dict.items(), key=lambda item: sum(item[1]))}
+                for i, h in enumerate(sortd):
+                    F.write(f"{h}, {sum(sortd[h])}\n")
+        except Exception as E:
+            print(E)
+            pass
 
 
     def print_success(self):
-        print(np.nanmean(self.all_results)*100)
+        print(self.get_success())
+    
+    def get_success(self):
+        return np.nanmean(self.all_results)*100
 
 
 #from sagym.models import make_rndj_nn_sg as make_latfile
@@ -126,8 +163,8 @@ class RandomHamiltonianGetter(object):
     def __init__(self, L):
         self.L = L
     
-    def get(self):
-        make_latfile('./latfile', L=self.L)
+    def get(self, latfilename):
+        make_latfile(latfilename, L=self.L)
     
     @property
     def ground_state(self):
@@ -161,7 +198,7 @@ class FileHamiltonianGetter(object):
         self._list_dir = self._list_dir[0:N]
         logging.info(f"--> new list size: {len(self._list_dir)}")
 
-    def get(self):
+    def get(self, latfilename):
         dirr = self._list_dir[self._last_idx % len(self._list_dir)]
         self._last_idx += 1
         if not self._disable_random:
@@ -172,7 +209,7 @@ class FileHamiltonianGetter(object):
             dirr = self._list_dir[self._static % len(self._list_dir)]
 
         self._last_returned_directory = os.path.join(self._directory, dirr)
-        shutil.copyfile(self._last_returned_directory + '/latfile', "./latfile")
+        shutil.copyfile(self._last_returned_directory + '/latfile', latfilename)
         try:
             self._last_returned_gs_energy = float(open(self._directory + dirr + "/gs_energy", 'r').read())
         except:

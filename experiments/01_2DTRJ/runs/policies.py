@@ -53,7 +53,7 @@ import logging
 from stable_baselines.common.policies import FeedForwardPolicy, MlpPolicy, MlpLnLstmPolicy
 
 
-def conv_pseudo_1d(x, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0, data_format='NHWC', one_dim_bias=False):
+def conv_pseudo_1d(x, scope, *, nf, rf, stride, pad='VALID', init_scale=np.sqrt(2), data_format='NHWC', one_dim_bias=False):
     if data_format == 'NHWC':
         channel_ax = 3
         strides = [1, stride[0], stride[1], 1]
@@ -89,54 +89,13 @@ def rep_cnn(unscaled_images, SPIN_N, scope, **kwargs):
         h = scaled_images
         if len(h.shape) < 4:
             h = tf.expand_dims(h, axis=-1)
-        hA = activ(conv_pseudo_1d(h, f'conv_over_spins', nf=64, rf=(1, h.shape[2]), stride=(1, h.shape[2]), pad='VALID', init_scale=np.sqrt(2), **kwargs))
-        hB = activ(conv_pseudo_1d(h, f'conv_over_reads', nf=64, rf=(h.shape[1], 1), stride=(h.shape[1], 1), pad='VALID', init_scale=np.sqrt(2), **kwargs))
+        hA = activ(conv_pseudo_1d(h, f'conv_over_spins', nf=64, rf=(1, h.shape[2]), stride=(1, h.shape[2]), pad='VALID', **kwargs))
+        hB = activ(conv_pseudo_1d(h, f'conv_over_reads', nf=64, rf=(h.shape[1], 1), stride=(h.shape[1], 1), pad='VALID', **kwargs))
 
         h = tf.concat((tf.layers.flatten(hA),tf.layers.flatten(hB)), axis=1)
 
         h3 = conv_to_fc(h)
-        return activ(fc(h3, 'fc1', nh=64, init_scale=np.sqrt(2)))
-
-
-class CnnPolicyOverReps(MlpPolicy):
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
-        super(CnnPolicyOverReps, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False)
-
-        with tf.variable_scope("model", reuse=reuse):
-#            activ = tf.nn.leaky_relu
-            activ = tf.nn.tanh
-
-            SPIN_N = ob_space.shape[1]
-            #X, processed_x = observation_input(ob_space, nbatch)
-            #print(f"{X.shape}|{processed_x.shape}")
-
-            with tf.variable_scope("model", reuse=reuse):
-                h_pi = rep_cnn(self.processed_obs, SPIN_N, scope="pi", **kwargs)  #hidden, activated CNN output
-                h_vf = rep_cnn(self.processed_obs, SPIN_N, scope="vf", **kwargs)  #hidden, activated CNN output
-                value_fn = tf.layers.dense(h_vf, 1, name='vf')
-
-                self._proba_distribution, self._policy, self.q_value = \
-                    self.pdtype.proba_distribution_from_latent(h_pi, h_vf, init_scale=0.1)
-
-            self._value_fn = value_fn
-            self._setup_init()
-
-
-    def step(self, obs, state=None, mask=None, deterministic=False):
-        if deterministic:
-            action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
-                                        {self.obs_ph: obs})
-        else:
-            action, value, neglogp = self.sess.run([self.action, self.value_flat, self.neglogp],
-                                        {self.obs_ph: obs})
-
-        return action, value, self.initial_state, neglogp
-
-    def proba_step(self, obs, state=None, mask=None):
-        return self.sess.run(self.policy_proba, {self.obs_ph: obs})
-
-    def value(self, obs, state=None, mask=None):
-        return self.sess.run(self.value_flat, {self.obs_ph: obs})
+        return activ(fc(h3, 'fc1', nh=64))
 
 
 
@@ -163,35 +122,4 @@ class CnnPolicyReps(object):
 
 
 
-#class MlpPolicy(object):
-#    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, reuse=False): #pylint: disable=W0613
-#        self.pdtype = make_pdtype(ac_space)
-#        with tf.variable_scope("model", reuse=reuse):
-#            X, processed_x = observation_input(ob_space, nbatch)
-#            activ = tf.tanh
-#            processed_x = tf.layers.flatten(processed_x)
-#            pi_h1 = activ(fc(processed_x, 'pi_fc1', nh=256, init_scale=np.sqrt(2)))
-#            pi_h2 = activ(fc(pi_h1, 'pi_fc2', nh=256, init_scale=np.sqrt(2)))
-#            vf_h1 = activ(fc(processed_x, 'vf_fc1', nh=256, init_scale=np.sqrt(2)))
-#            vf_h2 = activ(fc(vf_h1, 'vf_fc2', nh=256, init_scale=np.sqrt(2)))
-#            vf = fc(vf_h2, 'vf', 1)[:,0]
-#
-#            self.pd, self.pi = self.pdtype.pdfromlatent(pi_h2, init_scale=0.01)
-#
-#
-#        a0 = self.pd.sample()
-#        neglogp0 = self.pd.neglogp(a0)
-#        self.initial_state = None
-#
-#        def step(ob, *_args, **_kwargs):
-#            a, v, neglogp = sess.run([a0, vf, neglogp0], {X:ob})
-#            return a, v, self.initial_state, neglogp
-#
-#        def value(ob, *_args, **_kwargs):
-#            return sess.run(vf, {X:ob})
-#
-#        self.X = X
-#        self.vf = vf
-#        self.step = step
-#        self.value = value
-#
+

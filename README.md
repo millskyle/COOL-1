@@ -10,18 +10,30 @@ These instructions were made using a fresh Ubuntu 18.04 installation, with Anaco
 
 
 
-### Linux (Debian) 
+### Linux (Ubuntu)
 Install dependencies and build the Python interface to the Simulated Annealing backend:
 
 ``` bash
-apt install swig g++ libtclap-dev libboost-dev 
+#Using conda to install dependencies (no sudo required):
+conda install -c anaconda swig
+conda install -c bioconda tclap
+conda install -c anaconda boost
+
+#OR: you may use apt (sudo required)
+#  apt install swig g++ libtclap-dev libboost-dev 
+
+
+#Build
 make install
 ```
 
+Between installing the dependencies and issuing the `make install` command, you might need to edit `setup.py` to point to the correct tclap and boost paths.
 
 
 ### Mac OS X 
+
 This package works on a Mac, but has not been tested on a clean installation. You will probably need to edit `setup.py` to manually point to your boost include paths, tclap, etc.
+
 
 
 
@@ -35,8 +47,8 @@ export COOL_HOME=/home/user/git/COOL/
 If you wish to run the examples (reinforcement learning code), you will need to install the Python dependencies.
 
 ```bash
-pip install stable-baselines
-conda install tensorflow-gpu=1.13
+pip install stable-baselines tqdm networkx
+conda install tensorflow-gpu=1
 ```
 
 

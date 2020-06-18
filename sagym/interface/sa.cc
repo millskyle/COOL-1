@@ -29,6 +29,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 #include <string>
+#include <chrono>
 #include <vector>
 #include <iostream>
 #include <iomanip>
@@ -42,13 +43,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "lattice.h"
 #include "alg.h"
 
+
 #ifdef _OPENMP
 #include "omp.h"
 #endif
 
 using namespace std::chrono;
 using namespace TCLAP;
-
 
 string arg_latfile="./latfile";
 unsigned int arg_nreps=64;
@@ -76,7 +77,8 @@ void incr_current_beta(double incr, size_t rep) ;
 #endif
 
 // read lattice
-Lattice lattice(arg_latfile);
+Lattice lattice(arg_latfile); 
+vector<Algorithm> alg; //= make_algorithm_objects(lattice);
 
 vector<Algorithm> make_algorithm_objects(Lattice lattice__) {
     vector<Algorithm> alg(arg_nreps);
@@ -87,7 +89,6 @@ vector<Algorithm> make_algorithm_objects(Lattice lattice__) {
     return alg;
 }
 
-vector<Algorithm> alg = make_algorithm_objects(lattice);
 
 /*##############################################
 ################################################
@@ -95,9 +96,9 @@ vector<Algorithm> alg = make_algorithm_objects(lattice);
 ################################################
 ################################################*/
 
-int reset(double beta) {
+int reset(double beta, string latfilename, string latinitname) {
     // read lattice
-    Lattice lattice(arg_latfile);
+    Lattice lattice(latfilename);
     alg = make_algorithm_objects(lattice);
     //double beta = 0.00001;
     bool arg_neg_init = false; //("z", "neg_init", "Negative initialization", false);
@@ -107,7 +108,7 @@ int reset(double beta) {
         if (arg_neg_init) {
           alg[rep].set_negative();
         } else {
-          alg[rep].reset_sites(rep);
+          alg[rep].reset_sites(rep, latinitname);
         }
       }
     return 0;
