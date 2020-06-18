@@ -31,7 +31,9 @@ Between installing the dependencies and issuing the `make install` command, you 
 
 
 ### Mac OS X 
-This package should work on a Mac, but dependencies are more difficult to satisfy. Anaconda should make this easier.  It has not been tested on OS X.
+
+This package works on a Mac, but has not been tested on a clean installation. You will probably need to edit `setup.py` to manually point to your boost include paths, tclap, etc.
+
 
 
 
@@ -58,3 +60,5 @@ conda install tensorflow-gpu=1
 
 ## Note:
 `environment.yml` is a list of the developer's Python environment used during development.  It contains more software than is required, but can be manually consulted for package version numbers, should the need arise.  Most users will not need this file.
+
+<a href="https://zenodo.org/badge/latestdoi/250016240"><img src="https://zenodo.org/badge/250016240.svg" alt="DOI"></a>

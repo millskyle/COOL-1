@@ -2,6 +2,5 @@
  - `interface/` : contains the c++ backend files and SWIG interface files
  - `models.py` : method for creating random instances on the fly
  - `README.md` : this file
- - `render.bak.py` : the (abandoned) render method for the environment. Informative but too slow. Here for archival purposes
- - `sagym.py` : the main gym environment
+ - `sagym.py` : the main gym environment(s)
  - `sa.py` : A wrapper for the SA backend environment
