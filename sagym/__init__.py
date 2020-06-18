@@ -38,9 +38,14 @@ register(
     max_episode_steps=10000
 )
 
-
 register(
     id='SAContinuousRandomJ-v0',
     entry_point='sagym.sagym:SAGymContinuousRandomJ',
+    max_episode_steps=100000
+)
+
+register(
+    id='SAContinuousRandomJWithTime-v0',
+    entry_point='sagym.sagym:SAGymContinuousRandomJWithTime',
     max_episode_steps=100000
 )

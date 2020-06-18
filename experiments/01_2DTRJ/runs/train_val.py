@@ -250,7 +250,7 @@ if __name__=='__main__':
             print("Initializing model")
             model = PPO2(env=env,
                          policy=CnnLnLstmPolicyOverReps,
-                         #policy=CnnLnLstmPolicy,
+                         #policy=CnnPolicyOverReps,  #if no RNN
                          verbose=2,
                          _init_setup_model=True,
                          **model_args

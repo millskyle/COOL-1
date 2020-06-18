@@ -191,11 +191,6 @@ class Placeholder(object):
 
 
 
-
-
-
-
-
 class SAGymContinuousRandomJ(SAGym):
     def __init__(self):
         super().__init__()
@@ -364,12 +359,13 @@ class SAGymContinuousRandomJ(SAGym):
         self.minE_time = 1
 
         return self.state_concat(s)
-
+    
     def state_concat(self, s):
         """This function can be overridden to concatenate
         some internally stored data to the state, e.g. a 
         plane of current temperature, energy, etc."""
-        return np.expand_dims(s, axis=-1)
+        s = np.expand_dims(s, axis=-1)
+        return s
 
     def step(self, action):  #RANDOM J
         action = action/self.action_scaling
@@ -417,4 +413,24 @@ class SAGymContinuousRandomJ(SAGym):
         self.sum_of_rewards += reward
 
         return self.state_concat(state), reward, done, info
+    
+    
+    
+    
+    
+    
+class SAGymContinuousRandomJWithTime(SAGymContinuousRandomJ):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.observation_space = spaces.Box(low=-1, high=1, shape=(64, self.SPIN_N, 2))
+  
+    def state_concat(self, s):
+        """This function can be overridden to concatenate
+        some internally stored data to the state, e.g. a 
+        plane of current temperature, energy, etc."""
+        s = np.expand_dims(s, axis=-1)
+        time_plane = np.zeros_like(s) + self._step_counter/self.max_ep_length
+        return np.concatenate((s,time_plane), axis=-1)
+
 
