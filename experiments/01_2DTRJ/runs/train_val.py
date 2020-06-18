@@ -62,6 +62,7 @@ if __name__=='__main__':
     parser.add_argument("--gamma", default=0.99, type=float, help="Discount factor")
 
     parser.add_argument("--salt", default="a", type=str, help="Salt the hash for the codename")
+    parser.add_argument("--wandb_project", default="disable", type=str, help="Project id for logging to Weights and Biases")
 
     args = parser.parse_args()
 
@@ -96,11 +97,12 @@ else:
 episode_length=args.episode_length
 
 if not(args.test):
-    import wandb
-    wandb.init(id=args.tag, resume='allow', config=wandbconfig, project="cool_final", sync_tensorboard=True)
-    run_name=wandb.run.name
+    if args.wandb_project != "disable":
+        import wandb
+        wandb.init(id=args.tag, resume='allow', config=wandbconfig, project="cool_final", sync_tensorboard=True)
+    
     try:
-        subprocess.call(["scontrol","update",f"jobid={os.environ['SLURM_JOB_ID']}", f"name={wandb.run.name}"])
+        subprocess.call(["scontrol","update",f"jobid={os.environ['SLURM_JOB_ID']}", f"name={args.tag}"])
     except:
         pass
 
@@ -156,10 +158,8 @@ def validation(checkpoint_name, num_hamiltonians=20, num_trials=10, mode='valida
                 state = None
                 done = [False for _ in range(env.num_envs)]
                 step=-1
-                schedule = []
                 while True:
                     step+=1
-                    schedule.append(env.env_method('get_current_beta', indices=[0])[0])
                     tick = time.time()
                     action, state = model.predict(obs, state=state, mask=done, deterministic=True)
                     tock = time.time()
@@ -178,10 +178,6 @@ def validation(checkpoint_name, num_hamiltonians=20, num_trials=10, mode='valida
     #                    env.env_method("toggle_datadump_off", indices=[0])
                     if d:
                         break
-                if trial==0 and mode=='validation': #only want to log if in validation mode (i.e. validation during testing)
-                    plt.plot(schedule)
-                    wandb.log({"Validation schedules":wandb.Image(plt)})
-                    plt.close()
             if mode=='test':
                 env.env_method("hsr_write")
                 print(f"Total inference time: {inftime}s")
@@ -191,7 +187,8 @@ def validation(checkpoint_name, num_hamiltonians=20, num_trials=10, mode='valida
                 print(f"Time time in environment: {envtime/count}")
         if mode=='validation': #only want to log if in validation mode (i.e. validation during testing)
             p = env.env_method('get_hamiltonian_success_probability', indices=[0])[0]
-            wandb.log({"Probability of success":p})
+            if args.wandb_project != "disable":
+                wandb.log({"Probability of success":p})
             archive=checkpoint_name.replace("saved_model",f"archived_p{p:06.3f}_{uuid4()}")
             print(f"Archiving checkpoint. Copying {checkpoint_name} to {archive}")
             shutil.copy(checkpoint_name + ".zip", archive + ".zip")
@@ -209,7 +206,8 @@ if __name__=='__main__':
         if n_steps % 10000*episode_length == 0 and schedule_episode_length:
             episode_length = min(episode_length+1, 40)
             env.env_method('set_max_ep_length', indices=[0], max_ep_length=episode_length)
-            wandb.log({"episode_length":episode_length})
+            if args.wandb_project != "disable":
+                wandb.log({"episode_length":episode_length})
         if (n_steps) % 250000 == 0:
             os.makedirs(os.path.join('./saves/',args.tag), exist_ok=True)
             chkpt = os.path.join('./saves/',args.tag,f"saved_model_{n_steps}")
