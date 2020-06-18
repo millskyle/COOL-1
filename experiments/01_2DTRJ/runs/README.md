@@ -1,4 +1,6 @@
-`train_val.py` is the main script
+The main script is `train_val.py`.  Try running with `python train_val.py -h` to see available options.
+
+# Examples
 
 ## Training:
 
