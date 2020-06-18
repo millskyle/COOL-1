@@ -49,10 +49,20 @@ if __name__=='__main__':
     parser.add_argument("--episode_length", default=40, type=int, help="N_steps, that is, number of episode steps")
     parser.add_argument("--total_sweeps", default=4000, type=int, help="Total number of sweeps per episode")
     parser.add_argument("--dbeta", default=0.05, type=float, help='The (constant) dBeta to use for classic SA')
+    parser.add_argument("--schedule_file", default=None, type=str, help="Path to a file containing the actions to execute at each step, created with np.save")
     args = parser.parse_args()
 
-args.tag = f"linear_baseline_L{os.environ['LATTICE_L']}_dbeta_{args.dbeta:.6f}"
 episode_length=args.episode_length
+
+if args.schedule_file is not None:
+    dbetas = np.load(args.schedule_file)
+    args.tag = f"linear_baseline_L{os.environ['LATTICE_L']}_scheduled_{codenamize(str(dbetas))}"
+else:
+    dbetas = [args.dbeta,]*args.episode_length
+    args.tag = f"linear_baseline_L{os.environ['LATTICE_L']}_dbeta_{args.dbeta:.6f}"
+
+assert len(dbetas)==args.episode_length
+
 
 def env_generator(ep_len=40, total_sweeps=4000, beta_init_function=None):
     global args
@@ -82,6 +92,7 @@ def baseline(num_hamiltonians=20, num_trials=10):
 
         obs = env.reset()
 
+
         test_ep=-1
         for ham in range(num_hamiltonians):
             env.env_method("set_static_Hamiltonian_by_ID", indices=[0], ID=ham)
@@ -93,7 +104,7 @@ def baseline(num_hamiltonians=20, num_trials=10):
                 print("beta=",env.env_method('get_current_beta', indices=[0])[0])
                 while True:
                     step+=1
-                    obs, reward, d, _ = env.step(np.array([args.dbeta]))
+                    obs, reward, d, _ = env.step(np.array([dbetas[step]]))
                     if d:
                         break
             env.env_method("hsr_write")
